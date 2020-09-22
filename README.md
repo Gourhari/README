@@ -1,2 +1,2 @@
 # README
-PhD Theoretical and Computational Chemistry
+PhD in Theoretical and Computational Chemistry
