@@ -8,17 +8,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <string>
-#include <sys/stat.h>
 
-#define atomCount 5  //For B5
-//#define atomCount 5
-//#define structCount 14
-#define structCount 6
-#define range 3
-#define topKGBCount 10
-#define iterMax 50
-#define spin 2
-#define topKGBdecimal 2
+#define atomCount 5
+#define structCount 14
 
 
 using namespace std; 
@@ -47,10 +39,7 @@ std::string to_string(int i)
     return ss.str();
 }
 
-inline bool exists_test (const std::string& name) {
-  struct stat buffer;   
-  return (stat (name.c_str(), &buffer) == 0); 
-}
+
 
 void gengjf(struct particle particles[], int particleNum, int iteration)
 {
@@ -62,27 +51,12 @@ void gengjf(struct particle particles[], int particleNum, int iteration)
 
 	fstream  gjfFile;
 	gjfFile.open(str4.c_str(), ios::out | ios::trunc);
-	//char procShared[] = "%nprocshared=2";
-	char procShared[] = "%nprocshared=4";
-
-	// Commented by SSL on 04 12 2017 char memUsed[] = "%mem=2GB";
-	char memUsed[] = "%mem=8GB";
-
+	char procShared[] = "%nprocshared=2";
+	char memUsed[] = "%mem=2GB";
 	char noSave[] = "%nosave";
-	char titleCard[] = "B5 struct"; //Changed by SSL from B5 to B6
-	char method[] = "# b3lyp/6-311+g*";
-
-	char chargeSpin[10];
-	if(spin == 1)
-	{
-		string strTemp1 = "0 1";
-		strcpy(chargeSpin, strTemp1.c_str());
-	}
-	else if (spin == 3)
-	{
-		string strTemp1 = "0 3";
-		strcpy(chargeSpin, strTemp1.c_str());
-	}
+	char titleCard[] = "B5 struct";
+	char method[] = "# b3lyp/6-311+g(d,p)";
+	char chargeSpin[] = "0 2";
 
 	gjfFile << procShared << endl;
 	gjfFile << memUsed << endl;
@@ -90,6 +64,13 @@ void gengjf(struct particle particles[], int particleNum, int iteration)
 	gjfFile << method << endl;
 	gjfFile << endl << titleCard << endl << endl;
 	gjfFile << chargeSpin << endl;
+
+	/*
+	double dbl = 1278.65626487, dbl2 = 123.31541458;
+	char buffer [100];
+  	int n, a=5, b=3;
+  	n=snprintf (buffer, 100, "%lf plus %lf is %lf", dbl, dbl2, dbl+dbl2);
+  	printf ("[%s] is a string %d chars long\n\n",buffer,n);*/
 
 	// Commentd by SSL on 01.12.2017 cout << "Generating gjf file: " << str4 << endl;
 	for(int i = 0; i < atomCount; i++)
@@ -126,19 +107,9 @@ void gengjf(struct particle particles[], int particleNum, int iteration)
 		
 }
 
-//Changed slightly to include both singlet and triplet
 string readEnergy(string logFile)
 {
-	string search;
-	if(spin == 1)
-	{
-		search = "E(RB3LYP)";
-	}
-	else if (spin == 3)
-	{
-		search = "E(UB3LYP)";
-	}
-	
+	string search = "E(UB3LYP)";
 	ifstream inFile;
 	string line;
 	inFile.open(logFile.c_str());
@@ -146,6 +117,7 @@ string readEnergy(string logFile)
 	if(!inFile)
 	{
 		cout << "Unable to open file" << endl;
+		//return zeroRet.c_str();
 		return zeroRet;
 	}
 	string energyLine;
@@ -180,6 +152,8 @@ string readEnergy(string logFile)
 	    }
 	    energyLine.erase(0, posi + delimiter.length());
 	}
+	
+//return energy.c_str();
 return energy;
 }
 
@@ -225,6 +199,7 @@ int checkValid(int iter)
 		string str2 = to_string(i);
 		string iter = "_" + iterString;
 		string str6 = str1 + str2 + iter + str5;
+		//cout << "Checking Valid Ind: " << str6 << "\n";
 		while(!checkValidInd(str6))
 		{
 			;
@@ -233,138 +208,55 @@ int checkValid(int iter)
 return 1;
 }
 
-void initializePSO(struct particle particles[], int structureCount)
+void initializePos(struct particle particles[], int structureCount)
 {
-	string s1 = "strAll.txt";
-	// Checks if there is an existing file with completed iteration and uses it if present
-	if(exists_test(s1))
+	for(int i = 1;i < structureCount+1;i++)
 	{
-		fstream txtFile;
-		txtFile.open(s1.c_str(), ios::in);
-		for(int i = 1; i <= structCount; i++)
+		string str1 = "str";
+		string str2 = to_string(i);
+		string iter = "_0";
+		string str3 = ".txt";
+		string str5 = ".gjf";
+		string str4 = str1 + str2 + str3;
+		// Commentd by SSL on 01.12.2017 cout << "FILE to be opened: " << str4 << "\n";
+		fstream valFile;
+
+		valFile.open(str4.c_str(), ios::in);
+		char data[20];
+		for(int j=0; j <atomCount; j++)
 		{
-			char data[20];
-			for(int j=0; j < atomCount; j++)
-			{
-				txtFile >> particles[i-1].atoms[j].symbol;
-				strcpy(particles[i-1].pBest[j].symbol, particles[i-1].atoms[j].symbol);
-
-				txtFile >> data;
-				string temp1(data);
-				particles[i-1].atoms[j].coX = strtod(temp1.c_str(), NULL);
-				
-				txtFile >> data;
-				string temp2(data); 
-				particles[i-1].atoms[j].coY = strtod(temp2.c_str(), NULL);
-				
-				txtFile >> data; 
-				string temp3(data);
-				particles[i-1].atoms[j].coZ = strtod(temp3.c_str(), NULL);
-			}
-			for(int j=0; j < atomCount; j++)
-			{
-				txtFile >> data;
-				string temp4(data);
-				particles[i-1].atoms[j].velX = strtod(temp4.c_str(), NULL);
-				
-				txtFile >> data;
-				string temp5(data); 
-				particles[i-1].atoms[j].velY = strtod(temp5.c_str(), NULL);
-				
-				txtFile >> data; 
-				string temp6(data);
-				particles[i-1].atoms[j].velZ = strtod(temp6.c_str(), NULL);
-			}
+			valFile >> particles[i-1].atoms[j].symbol;
+			strcpy(particles[i-1].pBest[j].symbol, particles[i-1].atoms[j].symbol);
 			
-			txtFile >> data;
-			string temp10(data);
-			particles[i-1].cost = strtod(temp10.c_str(), NULL);
+			valFile >> data;
+			string temp1(data);
+			particles[i-1].atoms[j].coX = strtod(temp1.c_str(), NULL);
+			particles[i-1].pBest[j].coX = particles[i-1].atoms[j].coX;
 			
-			for(int j=0; j < atomCount; j++)
-			{
-				txtFile >> data;
-				string temp7(data);
-				particles[i-1].pBest[j].coX = strtod(temp7.c_str(), NULL);
-				
-				txtFile >> data;
-				string temp8(data); 
-				particles[i-1].pBest[j].coY = strtod(temp8.c_str(), NULL);
-				
-				txtFile >> data; 
-				string temp9(data);
-				particles[i-1].pBest[j].coZ = strtod(temp9.c_str(), NULL);
-			}
-
-			txtFile >> data;
-			string temp11(data);
-			particles[i-1].pBestCost = strtod(temp11.c_str(), NULL);				
-
-			gengjf(particles, i, 0);
-
-			string str1 = "str";
-			string str2 = to_string(i);
-			string iter = "_0";
-			string str5 = ".gjf";
+			valFile >> data;
+			string temp2(data); 
+			particles[i-1].atoms[j].coY = strtod(temp2.c_str(), NULL);
+			particles[i-1].pBest[j].coY = particles[i-1].atoms[j].coY;
 			
-			string command = "g09 " + str1 + str2 + iter + str5 + " &";
-			system(command.c_str());
-		}	
-		txtFile.close();	
-	}
+			valFile >> data; 
+			string temp3(data);
+			particles[i-1].atoms[j].coZ = strtod(temp3.c_str(), NULL);
+			particles[i-1].pBest[j].coZ = particles[i-1].atoms[j].coZ;
 
-	//If no such file is present, it reads from the inital str1.txt,.......
-	else
-	{
-		//cout << "---------\n\nDEBUG: Inside Initialize PSO fo no existing file.\n\n------";
-		for(int i = 1;i < structureCount+1;i++)
-		{
-			string str1 = "str";
-			string str2 = to_string(i);
-			string iter = "_0";
-			string str3 = ".txt";
-			string str5 = ".gjf";
-			string str4 = str1 + str2 + str3;
-			// Commentd by SSL on 01.12.2017 cout << "FILE to be opened: " << str4 << "\n";
-			fstream valFile;
-
-			valFile.open(str4.c_str(), ios::in);
-			char data[20];
-			for(int j=0; j <atomCount; j++)
-			{
-				valFile >> particles[i-1].atoms[j].symbol;
-				strcpy(particles[i-1].pBest[j].symbol, particles[i-1].atoms[j].symbol);
-				
-				valFile >> data;
-				string temp1(data);
-				particles[i-1].atoms[j].coX = strtod(temp1.c_str(), NULL);
-				particles[i-1].pBest[j].coX = particles[i-1].atoms[j].coX;
-				
-				valFile >> data;
-				string temp2(data); 
-				particles[i-1].atoms[j].coY = strtod(temp2.c_str(), NULL);
-				particles[i-1].pBest[j].coY = particles[i-1].atoms[j].coY;
-				
-				valFile >> data; 
-				string temp3(data);
-				particles[i-1].atoms[j].coZ = strtod(temp3.c_str(), NULL);
-				particles[i-1].pBest[j].coZ = particles[i-1].atoms[j].coZ;
-
-				particles[i-1].atoms[j].velX = 0.1;
-				particles[i-1].atoms[j].velY = 0.1;
-				particles[i-1].atoms[j].velZ = 0.1;
-			}
-			
-			particles[i-1].pBestCost = 100000;
-			particles[i-1].cost = 100000;
-			gengjf(particles, i, 0);
-			string command = "g09 " + str1 + str2 + iter + str5 + " &";  // Uncomment the '&' to execute the program in the background. 
-			system(command.c_str());
-			
-			valFile.close();	
+			particles[i-1].atoms[j].velX = 0;
+			particles[i-1].atoms[j].velY = 0;
+			particles[i-1].atoms[j].velZ = 0;
 		}
+		
+		particles[i-1].pBestCost = 100000;
+		particles[i-1].cost = 100000;
+		gengjf(particles, i, 0);
+		string command = "g09 " + str1 + str2 + iter + str5 + " &";  // Uncomment the '&' to execute the program in the background. 
+		// Commentd by SSL on 01.12.2017 cout << "command: " << command <<"\n";
+		system(command.c_str());
+		
+		valFile.close();	
 	}
-	
-	
 
 	cout << "Waiting for initial log files to be generated.\n";
 	while(!checkValid(0));
@@ -377,190 +269,61 @@ void initializePSO(struct particle particles[], int structureCount)
 		string str3 = ".txt";
 		string str5 = ".gjf";
 		string str4 = str1 + str2 + str3;
-		cout << "Structure " << (str1 + str2) << ":\n";
-
+		// Commentd by SSL on 01.12.2017 cout << "FILE to be opened: " << str4 << "\n";
+		
 		string str6 = ".log";
 		double energyCost = atof(readEnergy(str1+str2+iter+str6).c_str());
 		particles[i-1].cost = particles[i-1].pBestCost = energyCost;
-		printf("Energy Read: %lf\n", particles[i-1].pBestCost);
+		// Commentd by SSL on 01.12.2017 printf("Energy Read: %lf\n", particles[i-1].pBestCost);
 	}
 
 }
 
-//// Added by Gour on 06/01/2018 ---- Comparing if two structures are similar
-int isSimStruct(struct particle *particles, int a, int b)
+/* Commented by SSL on 01.12.2017
+int relDiff(double prev, double curr)
 {
-	//cout << "Inside similar structure function for " << a << ", " << b << "\n";
-	for(int i = 1; i <= atomCount; i++)
-	{
-		if(fabs(particles[a].atoms[i].coX - particles[b].atoms[i].coX) > 0.0000001)
-			return 0;
-		if(fabs(particles[a].atoms[i].coY - particles[b].atoms[i].coY) > 0.0000001)
-			return 0;
-		if(fabs(particles[a].atoms[i].coZ - particles[b].atoms[i].coZ) > 0.0000001)
-			return 0;
-	}
-return 1;
-}
-
-int isSimEnergy(struct particle *particles, int a, int b)
-{
-	if(fabs(particles[a].cost - particles[b].cost) < 0.0001)
-		return 1;
-	else
+	if(prev-curr <= 0)
 		return 0;
-}
-
-//// Ending Added by Gour on 06/01/2018
-
-//// Added by Gour on 06/01/2018 ----- Replacing the duplicate Structure with a random structure.
-void randomStruct(struct particle *particles, int a)
-{
-	for(int k = 1; k <= atomCount; k++)
+	else
 	{
-		particles[a].atoms[k].coX = (float)rand()/(float)(RAND_MAX/(2*range)) - range;
-		particles[a].atoms[k].coY = (float)rand()/(float)(RAND_MAX/(2*range)) - range;
-		particles[a].atoms[k].coZ = (float)rand()/(float)(RAND_MAX/(2*range)) - range;
-	}				
-}
-//// Ending Added by Gour on 06/01/2018
-
-
-// Added by Gour on 10/01/2018 ------ Function used in sorting of top k global-bests
-bool compareEnergy(struct particle p1, struct particle p2)
-{
-    return (p1.cost <= p2.cost);
-}
-// Ending Added by Gour on 10/01/2018
-
-
-// Added by Gour on 18.01.2018 -- Function to save the positions and velocities at the end of each iteration
-void saveStructures(struct particle *particles)
-{
-	//cout << "---------\n\nDEBUG: Inside save structures\n\n------";
-	string save = "strAll.txt";
-	fstream  txtFile;
-	txtFile.open(save.c_str(), ios::out | ios::trunc);
-
-	for(int i = 1; i <= structCount; i++)
-	{
-		for(int j = 0; j < atomCount; j++)
-		{
-			char buff[100];
-			int n;
-
-			txtFile << " " << particles[i-1].atoms[j].symbol << "\t\t\t\t\t";
-			
-			n = sprintf(buff, "%lf\t", particles[i-1].atoms[j].coX);
-			txtFile << buff;
-			
-			n = sprintf(buff, "%lf\t", particles[i - 1].atoms[j].coY);
-			txtFile << buff;
-			
-			n = sprintf(buff, "%lf", particles[i - 1].atoms[j].coZ);
-			txtFile << buff << "\n";
-			
-		}
-
-		txtFile << "\n";
-
-
-
-		for(int j = 0; j < atomCount; j++)
-		{
-			char buff[100];
-			int n;
-			
-			n = sprintf(buff, "%lf\t", particles[i-1].atoms[j].velX);
-			txtFile << buff;
-			
-			n = sprintf(buff, "%lf\t", particles[i-1].atoms[j].velY);
-			txtFile << buff;
-			
-			n = sprintf(buff, "%lf", particles[i-1].atoms[j].velZ);
-			txtFile << buff << "\n";
-			
-		}
-
-		txtFile << "\n";
-
-		char buffTemp[100];
-		int x;
-		x = sprintf(buffTemp, "%lf", particles[i - 1].cost);
-		txtFile << buffTemp << "\n";
-
-		txtFile << "\n";
-
-		for(int j = 0; j < atomCount; j++)
-		{
-			char buff[100];
-			int n;
-			
-			n = sprintf(buff, "%lf\t", particles[i-1].pBest[j].coX);
-			txtFile << buff;
-			
-			n = sprintf(buff, "%lf\t", particles[i-1].pBest[j].coY);
-			txtFile << buff;
-			
-			n = sprintf(buff, "%lf", particles[i-1].pBest[j].coZ);
-			txtFile << buff << "\n";
-			
-		}
-
-		x = sprintf(buffTemp, "%lf", particles[i - 1].pBestCost);
-		txtFile << buffTemp << "\n";
-
-		txtFile << "\n";
-		txtFile << "\n\n\n";
+		double temp = (prev-curr)*100/prev;
+		if(temp >= 0.01)
+			return 1;
+		else
+			return 0;
 	}
-	txtFile.close();
-}
+	
 
+} End of commented by SSL on 01 12 2017 */
 
-void savetopKGB(std::vector<struct particle> topKGB, int topKGBFilled)
+int relDiff(double prev, double curr)
 {
-	string topKGBFileString = "topKGB.txt";
-	fstream topKGBFile;
-	topKGBFile.open(topKGBFileString.c_str(), ios::out | ios::trunc);
-
-	for(int i = topKGBFilled-1; i >= 0; i++)
+	if(prev-curr <= 0)
+		return 0;
+	else
 	{
-		char buff[100];
-		int n;
-		for(int j = 0; j < atomCount; j++)
-		{
-			topKGBFile << " " << topKGB[i].atoms[j].symbol << "\t\t\t\t\t";
-			
-			n = sprintf(buff, "%lf\t", topKGB[i].atoms[j].coX);
-			topKGBFile << buff;
-			
-			n = sprintf(buff, "%lf\t", topKGB[i].atoms[j].coY);
-			topKGBFile << buff;
-			
-			n = sprintf(buff, "%lf", topKGB[i].atoms[j].coZ);
-			topKGBFile << buff << "\n";
-		}
-		n = sprintf(buff, "%lf\t", topKGB[i].cost);
-		topKGBFile << "Energy of this structure: ";
-		topKGBFile << buff;
-		topKGBFile << " \n";
+		double temp = (prev-curr)*100/prev;
+		//if(temp >= 0.01) Commented by SSL
+		if(temp >= 0.0000001)
+			return 1;
+		else
+			return 0;
 	}
+	
+
 }
 
 int main(int argc, char const *argv[])
 {
+	
 	struct particle particles[structCount];
-	initializePSO(particles, structCount);
+	initializePos(particles, structCount);
 	struct particle globalBest;
 	globalBest.cost = 1000000;
-	// Commented by SSL on 03 12 2017 float wMax = 0.9;
-	float wMax = 0.6;
-	// Commented by SSL on 03.12.2017 float wMin = 0.4;
-	float wMin = 0.2;
+	float wMax = 0.9;
+	float wMin = 0.4;
 	float w;
-
-	int iter = 1;
-	
+	int iterMax = 2000, iter = 1;
 	int c1 = 2, c2 = 2;
 	double r1, r2;
 	for(int i = 1; i < structCount+1 ;i++)
@@ -580,31 +343,12 @@ int main(int argc, char const *argv[])
 	
 	srand (static_cast <unsigned> (time(0)));
 	double prevBest = 10000;
-	
-	vector <struct particle> topKGB;
-	int topKGBFilled = 0;
-	float compDec = 1.00;
-	for(int idec = 1; idec <= topKGBdecimal; idec++)
-		compDec /= 10;
-	
-	
-	while(iter <= iterMax) 
-	{
-		// Added by Gour on 07.01.2018
-		for(int i = 1; i <= structCount; i++)
-		{
-			for(int j = i+1; j <= structCount; j++)
-			{
-				if(isSimEnergy(particles, i, j) == 1)
-				{
-					cout << "Similar structures for " << i << ", " << j << "\n";
-					randomStruct(particles, j);
-					cout << "Replaced structure " << j << " with random structure.\n";
-				}
-			}
-		}
 
-		// Ending Added by Gour on 07.01.2018
+	
+
+	while(iter < iterMax) // && relDiff(prevBest, globalBest.cost) == 1) //Commentd the last part by SSL
+	//while(iter < iterMax && relDiff(prevBest, globalBest.cost) == 1) //Commented by SSL
+	{
 
 		prevBest = globalBest.cost;
 		w = wMax - ((wMax - wMin) * iter / iterMax);
@@ -628,7 +372,19 @@ int main(int argc, char const *argv[])
 				particles[i-1].atoms[j].coY = particles[i-1].atoms[j].coY + particles[i-1].atoms[j].velY;
 				particles[i-1].atoms[j].coZ = particles[i-1].atoms[j].coZ + particles[i-1].atoms[j].velZ;
 			}
-						
+			/* Commenetd by SSL on 01.12.2017
+			printf("Position\n");
+			for(int j = 0; j < atomCount; j++)
+			{
+				printf("%lf \t %lf \t %lf\n", particles[i-1].atoms[j].coX, particles[i-1].atoms[j].coY, particles[i-1].atoms[j].coZ);
+			}
+			printf("Velocities\n");
+			for(int j = 0; j < atomCount; j++)
+			{
+				printf("%lf \t %lf \t %lf\n", particles[i-1].atoms[j].velX, particles[i-1].atoms[j].velY, particles[i-1].atoms[j].velZ);
+			} End of Commented by SSL on 01.12.2017 */
+
+			
 			string str1 = "str";
 			string str2 = to_string(i);
 			string iterString = "_" + to_string(iter);
@@ -675,106 +431,25 @@ int main(int argc, char const *argv[])
 		}
 
 
-
 		//Added by SSL on 29/11/2017
-		
+		/*
 		printf ("==================================\n");
 		printf("\\Global Best So far at the end of Iteration: %d\n", iter);
 		for(int j = 0; j < atomCount; j++)
 		{
-			printf("%lf \t %lf \t %lf\n", globalBest.atoms[j].coX, globalBest.atoms[j].coY, globalBest.atoms[j].coZ);
+	printf("%lf \t %lf \t %lf\n", globalBest.atoms[j].coX, globalBest.atoms[j].coY, globalBest.atoms[j].coZ);
 		}
 	
-		printf("Global Best Cost: %lf\n", globalBest.cost);
-		printf ("==================================\n"); 
+	printf("Global Best Cost: %lf\n", globalBest.cost);
+		printf ("==================================\n"); */
 
 		//End of Added by SSL on 29/11/2017
 
-		// Added by Gour on 06/01/2018 ---- Deleting gjf, log files of older iterations except the last 3
-		if(iter >= 3)
-		{
-			for(int i = 1; i <= structCount; i++)
-			{
-				string str1 = "str";
-				string str2 = to_string(i);
-				string iterString = "_" + to_string(iter-3);
-				string str5 = ".gjf";
-				string str6 = ".log";
 
-				string delgjf = str1 + str2 + iterString + str5;
-				string dellog = str1 + str2 + iterString + str6;
-				remove(delgjf.c_str());
-				remove(dellog.c_str());
-			}
-		}
-		// End of Added by Gour on 06/01/2018
 
-		// top KGB
-				
-		if(topKGBFilled == 0)
-		{
-			//cout << "DEBUG: First push\n";
-			topKGB.push_back(globalBest);
-			topKGBFilled++;
-		}
-		else
-		{
-			//cout << "DEBUG: KGB Currently filling: " << topKGBFilled << ". " << globalBest.cost << " \n";
-			//sort(topKGB.begin(), topKGB.end(), compareEnergy);
-			//cout << "Diff: " << topKGB[topKGBFilled - 1] << "\n";// - enerVals[i] << "\n";
-			if(topKGB[topKGBFilled - 1].cost - globalBest.cost > compDec){
-				topKGB.push_back(globalBest);
-				topKGBFilled++;
-			}
-			else
-			{
-				topKGB.pop_back();
-				topKGB.push_back(globalBest);
-			}
-			if(topKGBFilled > topKGBCount)
-			{
-				//cout << "Condition Met: topKGBFilled > topKGBCount\n";
-				topKGB.erase(topKGB.begin());
-			}
-		}
-		//  Added by Gour -------Saving structures after every iteration---- on 18/01/2018
-		//cout << "DEBUG: Saving topKGB\n";
-		//savetopKGB(topKGB, topKGBFilled);
-
-		//cout << "DEBUG: Done saving topKGB\n";
-		saveStructures(particles);
-
-		//Ending Added by Gour ------- on 18/01/2018
 		iter++;
 	}
-
-		string topKGBFileString = "topKGB.txt";
-		fstream topKGBFile;
-		topKGBFile.open(topKGBFileString.c_str(), ios::out | ios::trunc);
-
-		for(int i = topKGBFilled-1; i >= 0; i--)
-		{
-			char buff[100];
-			int n;
-			for(int j = 0; j < atomCount; j++)
-			{
-				topKGBFile << " " << topKGB[i].atoms[j].symbol << "\t\t\t\t\t";
-				
-				n = sprintf(buff, "%lf\t", topKGB[i].atoms[j].coX);
-				topKGBFile << buff;
-				
-				n = sprintf(buff, "%lf\t", topKGB[i].atoms[j].coY);
-				topKGBFile << buff;
-				
-				n = sprintf(buff, "%lf", topKGB[i].atoms[j].coZ);
-				topKGBFile << buff << "\n";
-			}
-			n = sprintf(buff, "%lf\t", topKGB[i].cost);
-			topKGBFile << "Energy of this structure: ";
-			topKGBFile << buff;
-			topKGBFile << " \n";
-		}
-
+	
 		/* Added by SSL on 01.12.2017 */
 		printf ("Execution Complete \n");
 		printf ("==================================\n");
@@ -793,6 +468,8 @@ int main(int argc, char const *argv[])
 		printf ("==================================\n");
 
 		/* End of Added by SSL on 01.12.2017 */
+
+
 
 		printf("Final Position\n");
 		for(int j = 0; j < atomCount; j++)
